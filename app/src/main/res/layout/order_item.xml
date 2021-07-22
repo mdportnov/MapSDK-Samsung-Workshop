@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <TextView
+        android:id="@+id/order_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        tools:text="НИЯУ МИФИ" />
+
+    <TextView
+        android:id="@+id/order_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:text="Кухня на районе. Салат из обогащённого Урана-238. 120₽" />
+
+    <LinearLayout
+        android:id="@+id/address_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:baselineAligned="true"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/order_address"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="false"
+            tools:text="Каширское ш., 31, Москва, 115409" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="20dp"
+            android:background="@null"
+            android:clickable="false"
+            android:src="@drawable/ic_baseline_map_24" />
+    </LinearLayout>
+
+</LinearLayout>
