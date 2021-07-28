@@ -27,7 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
-class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
+class MapFragment : Fragment(), OnMapReadyCallback,
+    GoogleMap.OnInfoWindowClickListener {
     private lateinit var mapFragment: SupportMapFragment
     private lateinit var binding: FragmentMapBinding
     private lateinit var args: OrdersFragmentArgs
@@ -72,7 +73,8 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
 
     override fun onMapReady(gm: GoogleMap) {
         map = gm
-        map.setOnMarkerClickListener(this)
+        map.setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
+        map.setOnInfoWindowClickListener(this)
 
         if (checkPermissions()) {
             if (!this::args.isInitialized) {
@@ -103,7 +105,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(it.latLng, 17.0f))
                 }
             }
-            map.setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
         }
     }
 
@@ -117,13 +118,14 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
         }
     }
 
-    override fun onMarkerClick(m: Marker): Boolean {
+    override fun onInfoWindowClick(m: Marker) {
         map.clear()
         addAllMarkers(map)
 
         if (checkPermissions())
             client.lastLocation.addOnSuccessListener {
                 val latLng = LatLng(m.position.latitude, m.position.longitude)
+                map.isMyLocationEnabled = true
                 GlobalScope.launch(Dispatchers.IO) {
                     val directionResult = DirectionsApi.newRequest(geoApiContext)
                         .origin(LatLng(it.latitude, it.longitude))
@@ -161,6 +163,7 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
                         withContext(Dispatchers.Main) {
                             map.addPolyline(line)
                             map.moveCamera(track)
+                            m.showInfoWindow()
                         }
                     }
                 }
@@ -168,7 +171,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
             }
         else
             requestPermissions()
-        return false
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
