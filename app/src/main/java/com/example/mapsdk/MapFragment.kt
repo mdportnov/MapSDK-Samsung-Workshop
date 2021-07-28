@@ -72,12 +72,11 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
 
     override fun onMapReady(gm: GoogleMap) {
         map = gm
+        map.setOnMarkerClickListener(this)
 
         if (checkPermissions()) {
-            map.setOnMarkerClickListener(this)
             if (!this::args.isInitialized) {
-                val locationResult = client.lastLocation
-                locationResult.addOnCompleteListener() { task ->
+                client.lastLocation.addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         val lastKnownLocation = task.result
                         if (lastKnownLocation != null) {
@@ -94,20 +93,17 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
                 }
                 map.isMyLocationEnabled = true
                 addAllMarkers(map)
-                map.setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
-            } else {
+            } else { // Зум к выбранному заказу
                 orders.find { it.name == args.orderName }?.let {
                     map.addMarker(
                         MarkerOptions()
                             .title(it.name)
                             .position(it.latLng)
                     ).apply { tag = it }
-                    map.apply {
-                        setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
-                        moveCamera(CameraUpdateFactory.newLatLngZoom(it.latLng, 17.0f))
-                    }
+                    map.moveCamera(CameraUpdateFactory.newLatLngZoom(it.latLng, 17.0f))
                 }
             }
+            map.setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
         }
     }
 
@@ -119,6 +115,60 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
                     .position(place.latLng)
             ).apply { tag = place }
         }
+    }
+
+    override fun onMarkerClick(m: Marker): Boolean {
+        map.clear()
+        addAllMarkers(map)
+
+        if (checkPermissions())
+            client.lastLocation.addOnSuccessListener {
+                val latLng = LatLng(m.position.latitude, m.position.longitude)
+                GlobalScope.launch(Dispatchers.IO) {
+                    val directionResult = DirectionsApi.newRequest(geoApiContext)
+                        .origin(LatLng(it.latitude, it.longitude))
+                        .destination(latLng).await()
+
+                    //Преобразование итогового пути в набор точек
+                    val path = directionResult.routes[0].overviewPolyline.decodePath()
+
+                    //Линия которую будем рисовать
+                    val line = PolylineOptions()
+                    val latLngBuilder = LatLngBounds.Builder()
+
+                    //Проходимся по всем точкам, добавляем их в Polyline и в LanLngBounds.Builder
+                    for (i in path.indices) {
+                        line.add(
+                            com.google.android.gms.maps.model.LatLng(
+                                path[i].lat,
+                                path[i].lng
+                            )
+                        )
+                        latLngBuilder.include(
+                            com.google.android.gms.maps.model.LatLng(
+                                path[i].lat,
+                                path[i].lng
+                            )
+                        )
+
+                        line.width(10f).color(R.color.black)
+                        //Выставляем камеру на нужную нам позицию
+                        val latLngBounds = latLngBuilder.build()
+                        val track = CameraUpdateFactory.newLatLngBounds(
+                            latLngBounds, 200, 200, 25
+                        )
+
+                        withContext(Dispatchers.Main) {
+                            map.addPolyline(line)
+                            map.moveCamera(track)
+                        }
+                    }
+                }
+                Toast.makeText(requireContext(), m.title, Toast.LENGTH_SHORT).show()
+            }
+        else
+            requestPermissions()
+        return false
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
@@ -140,62 +190,6 @@ class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListe
                 else -> GoogleMap.MAP_TYPE_NONE
             }
         return true
-    }
-
-    override fun onMarkerClick(m: Marker): Boolean {
-        map.clear()
-        addAllMarkers(map)
-
-        if (checkPermissions())
-            client.lastLocation.addOnSuccessListener {
-                val latLng = LatLng(m.position.latitude, m.position.longitude)
-                GlobalScope.launch(Dispatchers.IO) {
-                    val directionResult = DirectionsApi.newRequest(geoApiContext)
-                        .origin(LatLng(it.latitude, it.longitude))
-                        .destination(latLng).await()
-
-                    withContext(Dispatchers.Main) {
-                        //Преобразование итогового пути в набор точек
-                        val path = directionResult.routes[0].overviewPolyline.decodePath()
-
-                        //Линия которую будем рисовать
-                        val line = PolylineOptions()
-                        val latLngBuilder = LatLngBounds.Builder()
-
-                        //Проходимся по всем точкам, добавляем их в Polyline и в LanLngBounds.Builder
-                        for (i in path.indices) {
-                            line.add(
-                                com.google.android.gms.maps.model.LatLng(
-                                    path[i].lat,
-                                    path[i].lng
-                                )
-                            )
-                            latLngBuilder.include(
-                                com.google.android.gms.maps.model.LatLng(
-                                    path[i].lat,
-                                    path[i].lng
-                                )
-                            )
-                        }
-
-                        line.width(10f).color(R.color.black)
-                        map.addPolyline(line)
-
-                        //Выставляем камеру на нужную нам позицию
-                        val latLngBounds = latLngBuilder.build()
-                        val track = CameraUpdateFactory.newLatLngBounds(
-                            latLngBounds, 200, 200, 25
-                        )
-
-                        map.moveCamera(track)
-                    }
-                }
-                Toast.makeText(requireContext(), m.title, Toast.LENGTH_SHORT).show()
-            }
-        else
-            requestPermissions()
-
-        return false
     }
 
     private fun checkPermissions(): Boolean {
