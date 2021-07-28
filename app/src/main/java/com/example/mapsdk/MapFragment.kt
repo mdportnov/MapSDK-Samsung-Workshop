@@ -9,11 +9,9 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.mapsdk.databinding.FragmentMapBinding
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.OnMapReadyCallback
 
 
-class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
+class MapFragment : Fragment() {
     private lateinit var binding: FragmentMapBinding
     private lateinit var args: OrdersFragmentArgs
 
