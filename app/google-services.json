@@ -1,33 +1,33 @@
 {
   "project_info": {
-    "project_number": "989216416084",
-    "project_id": "mapsdk-tutorial",
-    "storage_bucket": "mapsdk-tutorial.appspot.com"
+    "project_number": "216340548872",
+    "project_id": "maps-tutorial-320821",
+    "storage_bucket": "maps-tutorial-320821.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:989216416084:android:ab1d8fff90019b1eae28c1",
+        "mobilesdk_app_id": "1:216340548872:android:7a66000d961e57651b30bd",
         "android_client_info": {
           "package_name": "com.example.mapsdk"
         }
       },
       "oauth_client": [
         {
-          "client_id": "989216416084-l7fj2mo5q9cp7lr3gnv4jppu2lvbjeep.apps.googleusercontent.com",
+          "client_id": "216340548872-62sa0d8bf0jd3lu5p8lc0t0oqua5m9e1.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBpNSUZapeLM3xCfAHtvx2HlKSa8wT7l_U"
+          "current_key": "AIzaSyAg_6suxPC7C64ZvRmdadKUIQ4WgcJ6XyA"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "989216416084-l7fj2mo5q9cp7lr3gnv4jppu2lvbjeep.apps.googleusercontent.com",
+              "client_id": "216340548872-62sa0d8bf0jd3lu5p8lc0t0oqua5m9e1.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

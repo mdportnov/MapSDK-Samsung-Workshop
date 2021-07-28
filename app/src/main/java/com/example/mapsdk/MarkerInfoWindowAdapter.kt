@@ -11,12 +11,13 @@ class MarkerInfoWindowAdapter(
     private val context: Context
 ) : GoogleMap.InfoWindowAdapter {
     override fun getInfoWindow(marker: Marker): View? {
+        // Return null to indicate that the
+        // default window (white bubble) should be used
         return null
     }
 
     override fun getInfoContents(marker: Marker): View? {
         val order = marker.tag as? Order ?: return null
-
         val binding = MarkerInfoContentsBinding.inflate(LayoutInflater.from(context))
 
         binding.textViewTitle.text = order.name

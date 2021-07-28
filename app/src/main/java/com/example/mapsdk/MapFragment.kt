@@ -1,26 +1,42 @@
 package com.example.mapsdk
 
-import android.content.Context
-import android.location.LocationManager
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import androidx.core.content.ContextCompat.getSystemService
+import android.view.*
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.mapsdk.databinding.FragmentMapBinding
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PolylineOptions
+import com.google.maps.DirectionsApi
+import com.google.maps.GeoApiContext
+import com.google.maps.model.LatLng
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
-class MapFragment : Fragment(), OnMapReadyCallback {
-    lateinit var mapFragment: SupportMapFragment
-    lateinit var binding: FragmentMapBinding
-    lateinit var args: OrdersFragmentArgs
-    lateinit var locationManager: LocationManager
+class MapFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
+    private lateinit var mapFragment: SupportMapFragment
+    private lateinit var binding: FragmentMapBinding
+    private lateinit var args: OrdersFragmentArgs
+
+    private lateinit var geoApiContext: GeoApiContext
+    private lateinit var map: GoogleMap
+    private lateinit var client: FusedLocationProviderClient
+
+    private val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
 
     private val orders: List<Order> by lazy {
         OrdersReader(requireContext()).read()!!
@@ -31,63 +47,174 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentMapBinding.inflate(layoutInflater)
+        setHasOptionsMenu(true)
 
-//        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-//        locationManager.requestLocationUpdates(
-//            LocationManager.NETWORK_PROVIDER,
-//            MIN_TIME,
-//            MIN_DISTANCE,
-//            this
-//        );
-
-        mapFragment =
-            childFragmentManager.findFragmentById(R.id.google_map) as SupportMapFragment
-
-        mapFragment.getMapAsync { gm ->
-            gm.isMyLocationEnabled = true
-        }
+        client = LocationServices.getFusedLocationProviderClient(requireContext())
 
         arguments?.let {
             args = OrdersFragmentArgs.fromBundle(it)
         }
 
-        if (!this::args.isInitialized)
-            mapFragment.getMapAsync { googleMap ->
-                addAllMarkers(googleMap)
-                googleMap.setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
-            }
-        else
-            mapFragment.getMapAsync { googleMap ->
-                orders.find { it.name == args.orderName }?.let {
-                    googleMap.addMarker(
-                        MarkerOptions()
-                            .title(it.name)
-                            .position(it.geometry.location.toGmsLatLng)
-                    ).apply { tag = it }
-                    googleMap.apply {
-                        setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
-                        moveCamera(CameraUpdateFactory.zoomTo(17.0f))
-                        moveCamera(
-                            CameraUpdateFactory.newLatLng(it.geometry.location.toGmsLatLng)
-                        )
-                    }
-                }
-            }
+        if (checkPermissions()) {
+            mapFragment =
+                childFragmentManager.findFragmentById(R.id.google_map) as SupportMapFragment
+
+            geoApiContext = GeoApiContext.Builder()
+                .apiKey(BuildConfig.MAPS_API_KEY)
+                .build()
+
+            mapFragment.getMapAsync(this)
+        } else
+            requestPermissions()
 
         return binding.root
     }
 
-    override fun onMapReady(p0: GoogleMap) {
-        TODO("Not yet implemented")
+    override fun onMapReady(gm: GoogleMap) {
+        map = gm
+
+        if (checkPermissions()) {
+            map.setOnMarkerClickListener(this)
+            if (!this::args.isInitialized) {
+                val locationResult = client.lastLocation
+                locationResult.addOnCompleteListener() { task ->
+                    if (task.isSuccessful) {
+                        val lastKnownLocation = task.result
+                        if (lastKnownLocation != null) {
+                            map.moveCamera(
+                                CameraUpdateFactory.newLatLngZoom(
+                                    com.google.android.gms.maps.model.LatLng(
+                                        lastKnownLocation.latitude,
+                                        lastKnownLocation.longitude
+                                    ), 10f
+                                )
+                            )
+                        }
+                    }
+                }
+                map.isMyLocationEnabled = true
+                addAllMarkers(map)
+                map.setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
+            } else {
+                orders.find { it.name == args.orderName }?.let {
+                    map.addMarker(
+                        MarkerOptions()
+                            .title(it.name)
+                            .position(it.latLng)
+                    ).apply { tag = it }
+                    map.apply {
+                        setInfoWindowAdapter(MarkerInfoWindowAdapter(requireContext()))
+                        moveCamera(CameraUpdateFactory.newLatLngZoom(it.latLng, 17.0f))
+                    }
+                }
+            }
+        }
     }
 
     private fun addAllMarkers(googleMap: GoogleMap) {
         orders.forEach { place ->
-            val marker = googleMap.addMarker(
+            googleMap.addMarker(
                 MarkerOptions()
                     .title(place.name)
-                    .position(place.geometry.location.toGmsLatLng)
+                    .position(place.latLng)
             ).apply { tag = place }
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.type_menu, menu)
+        super.onCreateOptionsMenu(menu, inflater)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        map.mapType =
+            when (item.itemId) {
+                R.id.normal ->
+                    GoogleMap.MAP_TYPE_NORMAL
+                R.id.hybrid ->
+                    GoogleMap.MAP_TYPE_HYBRID
+                R.id.satellite ->
+                    GoogleMap.MAP_TYPE_SATELLITE
+                R.id.terrain ->
+                    GoogleMap.MAP_TYPE_TERRAIN
+                else -> GoogleMap.MAP_TYPE_NONE
+            }
+        return true
+    }
+
+    override fun onMarkerClick(m: Marker): Boolean {
+        map.clear()
+        addAllMarkers(map)
+
+        if (checkPermissions())
+            client.lastLocation.addOnSuccessListener {
+                val latLng = LatLng(m.position.latitude, m.position.longitude)
+                GlobalScope.launch(Dispatchers.IO) {
+                    val directionResult = DirectionsApi.newRequest(geoApiContext)
+                        .origin(LatLng(it.latitude, it.longitude))
+                        .destination(latLng).await()
+
+                    withContext(Dispatchers.Main) {
+                        //Преобразование итогового пути в набор точек
+                        val path = directionResult.routes[0].overviewPolyline.decodePath()
+
+                        //Линия которую будем рисовать
+                        val line = PolylineOptions()
+                        val latLngBuilder = LatLngBounds.Builder()
+
+                        //Проходимся по всем точкам, добавляем их в Polyline и в LanLngBounds.Builder
+                        for (i in path.indices) {
+                            line.add(
+                                com.google.android.gms.maps.model.LatLng(
+                                    path[i].lat,
+                                    path[i].lng
+                                )
+                            )
+                            latLngBuilder.include(
+                                com.google.android.gms.maps.model.LatLng(
+                                    path[i].lat,
+                                    path[i].lng
+                                )
+                            )
+                        }
+
+                        line.width(10f).color(R.color.black)
+                        map.addPolyline(line)
+
+                        //Выставляем камеру на нужную нам позицию
+                        val latLngBounds = latLngBuilder.build()
+                        val track = CameraUpdateFactory.newLatLngBounds(
+                            latLngBounds, 200, 200, 25
+                        )
+
+                        map.moveCamera(track)
+                    }
+                }
+                Toast.makeText(requireContext(), m.title, Toast.LENGTH_SHORT).show()
+            }
+        else
+            requestPermissions()
+
+        return false
+    }
+
+    private fun checkPermissions(): Boolean {
+        return if (ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            true
+        } else {
+            requestPermissions()
+            false
+        }
+    }
+
+    private fun requestPermissions() {
+        requestPermissions(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+            PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION
+        )
     }
 }

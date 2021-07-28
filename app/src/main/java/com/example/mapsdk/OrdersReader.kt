@@ -1,7 +1,7 @@
 package com.example.mapsdk
 
 import android.content.Context
-import com.google.maps.model.Geometry
+import com.google.android.gms.maps.model.LatLng
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -16,7 +16,7 @@ class OrdersReader(private val context: Context) {
     private val type = Types.newParameterizedType(
         List::class.java,
         Order::class.java,
-        Geometry::class.java
+        LatLng::class.java
     )
 
     private val ordersAdapter = moshi.adapter<List<Order>>(type)

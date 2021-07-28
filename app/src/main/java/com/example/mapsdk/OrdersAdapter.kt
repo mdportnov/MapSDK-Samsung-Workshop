@@ -14,8 +14,7 @@ class OrdersAdapter(data: List<Order>) : RecyclerView.Adapter<OrdersAdapter.Orde
             notifyDataSetChanged()
         }
 
-    class OrderHolder(var binding: OrderItemBinding) : RecyclerView.ViewHolder(binding.root) {
-    }
+    class OrderHolder(var binding: OrderItemBinding) : RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): OrderHolder {
         val binding = OrderItemBinding
@@ -30,10 +29,10 @@ class OrdersAdapter(data: List<Order>) : RecyclerView.Adapter<OrdersAdapter.Orde
             binding.orderName.text = data[position].name
             binding.addressLayout.setOnClickListener {
                 binding.root.findNavController()
-                    .navigate(R.id.action_ordersFragment_to_mapFragment,
-                    bundleOf("order_name" to data[position].name))
-
-
+                    .navigate(
+                        R.id.action_ordersFragment_to_mapFragment,
+                        bundleOf("order_name" to data[position].name)
+                    )
             }
         }
     }
